@@ -1,16 +1,5 @@
 import NFT, { INFT } from "./nftModel.js";
-
-interface NFTCreationData {
-  token_id?: string;
-  contractAddress?: string;
-  metadataUrl: string;
-  name: string;
-  description: string;
-  imageUrl: string;
-  ownerAddress?: string;
-  creatorAddress: string;
-  price: number;
-}
+import { NFTCreationData } from "./nftTypes";
 
 class NFTRepository {
   async createNFT(nftData: NFTCreationData): Promise<INFT> {

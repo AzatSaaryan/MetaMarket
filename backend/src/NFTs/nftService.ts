@@ -4,34 +4,18 @@ import {
 } from "../utils/nftStorageClient.js";
 import { INFT } from "../NFTs/nftModel.js";
 import nftRepository from "./nftRepository.js";
+import {
+  IPFSUploadResponse,
+  NFTMetadataUploadResponse,
+  NFTMetadata,
+  NFTCreationData,
+} from "./nftTypes";
+import { ethers } from "ethers";
+import MetaToken from "../artifacts/contracts/MetaToken.sol/MetaToken.json";
 
-interface IPFSUploadResponse {
-  ipfsUrl: string;
-  gatewayUrl: string;
-}
-
-interface NFTMetadataUploadResponse {
-  ipfsUrl: string;
-  gatewayUrl: string;
-}
-
-interface NFTMetadata {
-  name: string;
-  description: string;
-  image: string;
-}
-
-interface NFTCreationData {
-  token_id?: string;
-  contractAddress?: string;
-  metadataUrl: string;
-  name: string;
-  description: string;
-  imageUrl: string;
-  ownerAddress: string;
-  creatorAddress: string;
-  price: number;
-}
+const RPC_URL = process.env.ALCHEMY_NETWORK_URL!;
+const PRIVATE_KEY = process.env.PRIVATE_KEY!;
+const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS!;
 
 class NFTService {
   async uploadImage(file: Express.Multer.File): Promise<IPFSUploadResponse> {
@@ -45,7 +29,7 @@ class NFTService {
         "Invalid image file type. Only JPEG, PNG, and GIF are allowed."
       );
     }
-    const maxSize = 10 * 1024 * 1024; // 10 MB
+    const maxSize = 10 * 1024 * 1024;
     if (file.size > maxSize) {
       throw new Error("File size exceeds 10MB limit.");
     }
@@ -140,6 +124,53 @@ class NFTService {
       });
       throw new Error(
         `Failed to create NFT: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
+  }
+
+  async mintOnChain(
+    to: string,
+    metadataCid: string
+  ): Promise<{
+    tokenId: string;
+    txHash: string;
+  }> {
+    const provider = new ethers.JsonRpcProvider(RPC_URL);
+    const wallet = new ethers.Wallet(PRIVATE_KEY, provider);
+    const contract = new ethers.Contract(
+      CONTRACT_ADDRESS,
+      MetaToken.abi,
+      wallet
+    );
+
+    try {
+      const tx = await contract.safeMint(to, metadataCid);
+      const receipt = await tx.wait();
+
+      const tokenIdEvent = receipt.logs?.find(
+        (log: any) =>
+          log.topics[0] === ethers.id("Transfer(address,address,uint256)")
+      );
+
+      const tokenId = tokenIdEvent
+        ? BigInt(tokenIdEvent.topics[3]).toString()
+        : "unknown";
+
+      return {
+        tokenId,
+        txHash: tx.hash,
+      };
+    } catch (error) {
+      console.error("Minting on-chain failed:", {
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined,
+        to,
+        metadataCid,
+      });
+      throw new Error(
+        `Minting on-chain failed: ${
           error instanceof Error ? error.message : "Unknown error"
         }`
       );
