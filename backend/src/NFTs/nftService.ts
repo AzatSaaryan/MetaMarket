@@ -11,11 +11,23 @@ import {
   NFTCreationData,
 } from "./nftTypes";
 import { ethers } from "ethers";
-import MetaToken from "../artifacts/contracts/MetaToken.sol/MetaToken.json";
+// import MetaToken from "../artifacts/contracts/MetaToken.sol/MetaToken.json";
+import { readFileSync } from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const RPC_URL = process.env.ALCHEMY_NETWORK_URL!;
 const PRIVATE_KEY = process.env.PRIVATE_KEY!;
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS!;
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const abiPath = path.resolve(
+  __dirname,
+  "../../artifacts/contracts/MetaToken.sol/MetaToken.json"
+);
+const abi = JSON.parse(readFileSync(abiPath, "utf8")).abi;
 
 class NFTService {
   async uploadImage(file: Express.Multer.File): Promise<IPFSUploadResponse> {
@@ -114,7 +126,17 @@ class NFTService {
       if (existingNFT) {
         throw new Error("NFT already exists");
       }
-      const nft = await nftRepository.createNFT(nftData);
+
+      const { tokenId, txHash } = await this.mintOnChain(
+        ownerAddress,
+        metadataUrl.replace("ipfs://", "")
+      );
+
+      const nft = await nftRepository.createNFT({
+        ...nftData,
+        token_id: tokenId,
+        contractAddress: CONTRACT_ADDRESS,
+      });
       return nft;
     } catch (error) {
       console.error("Error creating NFT:", {
@@ -139,11 +161,7 @@ class NFTService {
   }> {
     const provider = new ethers.JsonRpcProvider(RPC_URL);
     const wallet = new ethers.Wallet(PRIVATE_KEY, provider);
-    const contract = new ethers.Contract(
-      CONTRACT_ADDRESS,
-      MetaToken.abi,
-      wallet
-    );
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, abi, wallet);
 
     try {
       const tx = await contract.safeMint(to, metadataCid);
