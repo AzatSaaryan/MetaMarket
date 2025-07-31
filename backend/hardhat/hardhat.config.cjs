@@ -1,9 +1,8 @@
 require("dotenv").config();
 require("@nomicfoundation/hardhat-toolbox");
 
-if (!process.env.ALCHEMY_NETWORK_URL || !process.env.PRIVATE_KEY) {
+if (!process.env.ALCHEMY_NETWORK_URL || !process.env.PRIVATE_KEY)
   throw new Error("❌ Missing ALCHEMY_NETWORK_URL or PRIVATE_KEY in .env");
-}
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
@@ -18,5 +17,3 @@ module.exports = {
     artifacts: "../src/artifacts",
   },
 };
-
-
