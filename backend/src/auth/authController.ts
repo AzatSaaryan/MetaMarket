@@ -8,12 +8,13 @@ class AuthController {
     req: Request,
     res: Response
   ) => {
+    const walletAddress = req.body.walletAddress;
+    if (!walletAddress || !isAddress(walletAddress)) {
+      res.status(400).json({ message: "Invalid or missing wallet address" });
+      return;
+    }
+
     try {
-      const walletAddress = req.body.walletAddress;
-      if (!walletAddress || !isAddress(walletAddress)) {
-        res.status(400).json({ message: "Invalid or missing wallet address" });
-        return;
-      }
       const nonce = await authService.generateNonce(walletAddress);
       res.status(200).json({ nonce });
     } catch (error) {
@@ -39,6 +40,7 @@ class AuthController {
       res.status(400).json({ message: "Invalid wallet address or signature" });
       return;
     }
+
     try {
       const { accessToken, user } = await authService.login(
         walletAddress,
@@ -62,10 +64,6 @@ class AuthController {
     } catch (error) {
       if (error instanceof Error) {
         console.error("Error logging in user:", error.message);
-        if (error.message === "Invalid signature") {
-          res.status(401).json({ message: "Invalid signature" });
-          return;
-        }
         res.status(401).json({ message: "User login failed" });
         return;
       }
@@ -73,28 +71,27 @@ class AuthController {
   };
 
   public logout: RequestHandler = async (req: Request, res: Response) => {
+    const walletAddress = req.cookies.walletAddress;
+    const accessToken = req.cookies.accessToken as string;
+
+    if (!accessToken) {
+      res.status(400).json({ message: "No access token provided" });
+      return;
+    }
+    if (!walletAddress) {
+      res.status(400).json({ message: "Wallet address is required" });
+      return;
+    }
+
+    res.clearCookie("accessToken", { httpOnly: true, sameSite: "strict" });
+    res.clearCookie("walletAddress", { httpOnly: true, sameSite: "strict" });
+
     try {
-      const walletAddress = req.cookies.walletAddress;
-      const accessToken = req.cookies.accessToken as string;
-
-      if (!accessToken) {
-        res.status(400).json({ message: "No access token provided" });
-        return;
-      }
-      if (!walletAddress) {
-        res.status(400).json({ message: "Wallet address is required" });
-        return;
-      }
-
-      res.clearCookie("accessToken", { httpOnly: true, sameSite: "strict" });
-      res.clearCookie("walletAddress", { httpOnly: true, sameSite: "strict" });
-
       const deletedRefreshToken = await deleteRefreshToken(walletAddress);
-      if (deletedRefreshToken === 1) {
+      if (deletedRefreshToken === 1)
         console.log("Refresh token deleted from Redis");
-      } else {
+      else
         console.log("No refresh token found for walletAddress:", walletAddress);
-      }
 
       res.status(200).json({ message: "User logged out successfully" });
       return;

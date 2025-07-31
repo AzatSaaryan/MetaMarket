@@ -4,22 +4,21 @@ import { UserUpdateSchemaZod, IUserUpdate } from "./userModel.js";
 
 class UserController {
   public updateUser: RequestHandler = async (req: Request, res: Response) => {
+    const userId = req.params.id;
+    if (!userId) {
+      res.status(400).json({ message: "User ID is required" });
+      return;
+    }
+    const validationResult = UserUpdateSchemaZod.safeParse(req.body);
+
+    if (!validationResult.success) {
+      res.status(400).json({
+        error: "Validation failed",
+        details: validationResult.error.format(),
+      });
+      return;
+    }
     try {
-      const userId = req.params.id;
-      if (!userId) {
-        res.status(400).json({ message: "User ID is required" });
-        return;
-      }
-      const validationResult = UserUpdateSchemaZod.safeParse(req.body);
-
-      if (!validationResult.success) {
-        res.status(400).json({
-          error: "Validation failed",
-          details: validationResult.error.format(),
-        });
-        return;
-      }
-
       const updatedUser = await userService.updateUser(
         userId,
         validationResult.data as IUserUpdate

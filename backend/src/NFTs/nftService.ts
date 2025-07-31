@@ -11,7 +11,6 @@ import {
   NFTCreationData,
 } from "./nftTypes";
 import { ethers } from "ethers";
-// import MetaToken from "../artifacts/contracts/MetaToken.sol/MetaToken.json";
 import { readFileSync } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -31,47 +30,31 @@ const abi = JSON.parse(readFileSync(abiPath, "utf8")).abi;
 
 class NFTService {
   async uploadImage(file: Express.Multer.File): Promise<IPFSUploadResponse> {
-    if (!file) {
-      throw new Error("Image file is required");
-    }
+    const MAX_SIZE = 10 * 1024 * 1024;
+
+    if (!file) throw new Error("Image file is required");
 
     const allowedMimeTypes = ["image/jpeg", "image/png", "image/gif"];
-    if (!allowedMimeTypes.includes(file.mimetype)) {
+
+    if (!allowedMimeTypes.includes(file.mimetype))
       throw new Error(
         "Invalid image file type. Only JPEG, PNG, and GIF are allowed."
       );
-    }
-    const maxSize = 10 * 1024 * 1024;
-    if (file.size > maxSize) {
-      throw new Error("File size exceeds 10MB limit.");
-    }
 
-    try {
-      const { ipfsUrl, gatewayUrl } = await uploadImageToIPFS(file);
-      if (!ipfsUrl || !gatewayUrl) {
-        throw new Error("Failed to upload image to IPFS");
-      }
-      return { ipfsUrl, gatewayUrl };
-    } catch (error) {
-      console.error("Failed to upload image to IPFS:", {
-        error: error instanceof Error ? error.message : error,
-        stack: error instanceof Error ? error.stack : undefined,
-        fileName: file.originalname,
-      });
-      throw new Error(
-        `Failed to upload image to IPFS: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
-    }
+    if (file.size > MAX_SIZE) throw new Error("File size exceeds 10MB limit.");
+
+    const { ipfsUrl, gatewayUrl } = await uploadImageToIPFS(file);
+    if (!ipfsUrl || !gatewayUrl)
+      throw new Error("Failed to upload image to IPFS");
+
+    return { ipfsUrl, gatewayUrl };
   }
 
   async uploadMetadata(
     metadata: NFTMetadata
   ): Promise<NFTMetadataUploadResponse> {
-    if (!metadata) {
-      throw new Error("Metadata is required");
-    }
+    if (!metadata) throw new Error("Metadata is required");
+
     try {
       const { ipfsUrl, gatewayUrl } = await uploadMetadataToIPFS(metadata);
       if (!ipfsUrl || !gatewayUrl) {
@@ -93,9 +76,8 @@ class NFTService {
   }
 
   async createNFT(nftData: NFTCreationData): Promise<INFT> {
-    if (!nftData) {
-      throw new Error("NFT creation data is required");
-    }
+    if (!nftData) throw new Error("NFT creation data is required");
+
     try {
       const {
         token_id,
@@ -108,6 +90,7 @@ class NFTService {
         creatorAddress,
         price,
       } = nftData;
+
       if (
         !metadataUrl ||
         !name ||
@@ -116,16 +99,14 @@ class NFTService {
         !ownerAddress ||
         !creatorAddress ||
         price === undefined
-      ) {
+      )
         throw new Error("All fields are required to create an NFT");
-      }
+
       const existingNFT = await nftRepository.findByImageAndMetadataHash(
         metadataUrl,
         imageUrl
       );
-      if (existingNFT) {
-        throw new Error("NFT already exists");
-      }
+      if (existingNFT) throw new Error("NFT already exists");
 
       const { tokenId, txHash } = await this.mintOnChain(
         ownerAddress,
