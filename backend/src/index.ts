@@ -8,12 +8,12 @@ import authRouter from "./auth/authRouter.js";
 import nftRouter from "./NFTs/nftRouter.js";
 
 dotenv.config();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
 const app: Express = express();
 
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || "*",
+    origin: process.env.CORS_ORIGINS || "http://localhost:5000",
     credentials: true,
   })
 );

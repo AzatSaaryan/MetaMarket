@@ -32,6 +32,7 @@ class AuthController {
     const existingAccessToken = req.cookies.accessToken;
 
     if (existingWalletAddress || existingAccessToken) {
+      console.log("User already logged in");
       res.status(400).json({ message: "User already logged in" });
       return;
     }
@@ -71,6 +72,8 @@ class AuthController {
   };
 
   public logout: RequestHandler = async (req: Request, res: Response) => {
+    console.log("Logging out user");
+
     const walletAddress = req.cookies.walletAddress;
     const accessToken = req.cookies.accessToken as string;
 

@@ -26,6 +26,7 @@ class AuthService {
     walletAddress: string,
     signature: string
   ): Promise<LoginResponse> {
+    console.log("Validating signature...");
     const user = await userRepository.getUserByWalletAddress(walletAddress);
     if (!user) throw new Error("User not found");
 
@@ -35,11 +36,15 @@ class AuthService {
       user.nonce
     );
 
+    console.log("Checking Singature");
+
     if (!isValidSignature) throw new Error("Invalid signature");
 
     const newNonce = createNonce();
     await authRepository.updateUserNonce(walletAddress, newNonce);
     const accessToken = await signAccessToken(walletAddress);
+    console.log("AccessToken: ", accessToken);
+
     await signRefreshToken(walletAddress);
 
     return {
